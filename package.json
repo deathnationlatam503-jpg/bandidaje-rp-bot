@@ -1,0 +1,25 @@
+{
+  "name": "bandidaje-rp-bot",
+  "version": "2.0.0",
+  "description": "Discord bot para servidor Bandidaje RP",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "discord",
+    "discord.js",
+    "roleplay",
+    "bot"
+  ],
+  "author": "deathnationlatam503-jpg",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.11.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
