@@ -1,7 +1,7 @@
 {
   "name": "bandidaje-rp-bot",
-  "version": "2.0.0",
-  "description": "Discord bot para servidor Bandidaje RP",
+  "version": "3.0.0",
+  "description": "Discord bot para servidor Bandidaje RP - Sistema de economía, crímenes y profesiones",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -11,7 +11,10 @@
     "discord",
     "discord.js",
     "roleplay",
-    "bot"
+    "bot",
+    "bandidaje",
+    "economia",
+    "crimenes"
   ],
   "author": "deathnationlatam503-jpg",
   "license": "MIT",
@@ -21,5 +24,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
