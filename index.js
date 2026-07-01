@@ -6,11 +6,18 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
   PermissionFlagsBits
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
+
+// Validar token antes de conectar
+const token = process.env.DISCORD_TOKEN;
+if (!token) {
+  console.error("❌ ERROR CRÍTICO: DISCORD_TOKEN no está configurado");
+  console.error("📝 Agrega DISCORD_TOKEN en Variables de Discloud");
+  process.exit(1);
+}
 
 const client = new Client({
   intents: [
@@ -22,14 +29,9 @@ const client = new Client({
   ]
 });
 
-/* =========================
-   CONFIG RP AVANZADA
-========================= */
-
+// Config RP
 const config = {
-  // Administradores supremos
-  superAdmins: ["1234567890"], // REEMPLAZA CON TU ID
-  
+  superAdmins: ["1234567890"],
   roles: {
     verificado: "1435828866194214912",
     noverificado: "1436940707003760640",
@@ -39,7 +41,6 @@ const config = {
     bombero: "1513312126297575444",
     ejercito: "1513312017996316834"
   },
-
   channels: {
     bienvenida: "1436942303741608028",
     entornos: "1521638065473589419",
@@ -47,26 +48,21 @@ const config = {
     logs: "1518613297195384943",
     soporte: "1436942303741608028"
   },
-
   economy: {
     initialMoney: 1000,
     minTransfer: 100,
     maxTransfer: 50000,
     dailyBonus: 500,
     crimeReward: { min: 500, max: 2000 },
-    crimeChance: 0.6 // 60% de éxito
+    crimeChance: 0.6
   },
-
   timeouts: {
-    dailyBonus: 24 * 60 * 60 * 1000, // 24 horas
-    crime: 30 * 60 * 1000 // 30 minutos
+    dailyBonus: 24 * 60 * 60 * 1000,
+    crime: 30 * 60 * 1000
   }
 };
 
-/* =========================
-   DATABASE MANAGER MEJORADO
-========================= */
-
+// Database
 class Database {
   constructor(filePath) {
     this.filePath = filePath;
@@ -88,7 +84,7 @@ class Database {
         this.save();
       }
     } catch (error) {
-      console.error("❌ Error cargando base de datos:", error);
+      console.error("❌ Error cargando base de datos:", error.message);
       this.data = { users: {}, votes: {}, crimes: {}, lastDaily: {} };
     }
   }
@@ -97,7 +93,7 @@ class Database {
     try {
       fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2));
     } catch (error) {
-      console.error("❌ Error guardando base de datos:", error);
+      console.error("❌ Error guardando base de datos:", error.message);
     }
   }
 
@@ -149,25 +145,26 @@ class Database {
 const dbPath = process.env.DATABASE_URL || "./database.json";
 const db = new Database(dbPath);
 
-/* =========================
-   UTILITY FUNCTIONS
-========================= */
-
+// Utils
 function isSuperAdmin(userId) {
   return config.superAdmins.includes(userId);
 }
 
 function logEvent(guild, event, details, color = "Blue") {
-  const logChannel = guild.channels.cache.get(config.channels.logs);
-  if (!logChannel) return;
+  try {
+    const logChannel = guild.channels.cache.get(config.channels.logs);
+    if (!logChannel) return;
 
-  const embed = new EmbedBuilder()
-    .setTitle(`📋 ${event}`)
-    .setDescription(details)
-    .setColor(color)
-    .setTimestamp();
+    const embed = new EmbedBuilder()
+      .setTitle(`📋 ${event}`)
+      .setDescription(details)
+      .setColor(color)
+      .setTimestamp();
 
-  logChannel.send({ embeds: [embed] }).catch(() => {});
+    logChannel.send({ embeds: [embed] }).catch(() => {});
+  } catch (error) {
+    console.error("❌ Error en logEvent:", error.message);
+  }
 }
 
 function getLevel(exp) {
@@ -178,34 +175,29 @@ function formatMoney(amount) {
   return `$${amount.toLocaleString()}`;
 }
 
-/* =========================
-   READY
-========================= */
-
+// Ready
 client.once("ready", () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║  🔥 BANDIDAJE RP BOT ONLINE 🔥        ║
-║  Usuario: ${client.user.tag.padEnd(29)}║
-║  Base de datos: ${dbPath.padEnd(20)}║
-║  Versión: 3.0 ULTIMATE                  ║
+║  Usuario: ${client.user.tag}
+║  Base de datos: ${dbPath}
+║  Versión: 3.0 DISCLOUD                 ║
 ╚════════════════════════════════════════╝
   `);
 
-  client.user.setActivity("!ayuda para comandos", { type: "LISTENING" });
+  client.user.setActivity("!ayuda para comandos", { type: "LISTENING" }).catch(() => {});
 });
 
-/* =========================
-   BIENVENIDA + AUTOROLE
-========================= */
-
+// Member Join
 client.on("guildMemberAdd", (member) => {
-  const ch = member.guild.channels.cache.get(config.channels.bienvenida);
+  try {
+    const ch = member.guild.channels.cache.get(config.channels.bienvenida);
 
-  if (ch) {
-    const embed = new EmbedBuilder()
-      .setTitle("👋 ¡Bienvenido a Bandidaje RP!")
-      .setDescription(`
+    if (ch) {
+      const embed = new EmbedBuilder()
+        .setTitle("👋 ¡Bienvenido a Bandidaje RP!")
+        .setDescription(`
 ${member} acaba de unirse al servidor.
 
 **Pasos para empezar:**
@@ -213,44 +205,37 @@ ${member} acaba de unirse al servidor.
 2️⃣ Usa \`!dni\` para crear tu DNI
 3️⃣ Elige una profesión con \`!profesion\`
 4️⃣ Usa \`!ayuda\` para ver todos los comandos
+        `)
+        .setColor("Green")
+        .setThumbnail(member.user.displayAvatarURL())
+        .setTimestamp();
 
-¡Bienvenido a la familia!
-      `)
-      .setColor("Green")
-      .setThumbnail(member.user.displayAvatarURL())
-      .setTimestamp();
+      ch.send({ embeds: [embed] }).catch(() => {});
+    }
 
-    ch.send({ embeds: [embed] }).catch((err) => {
-      console.error("❌ Error enviando bienvenida:", err);
-    });
+    member.roles.add(config.roles.noverificado).catch(() => {});
+    logEvent(member.guild, "Nuevo Miembro", `${member.user.tag} se unió`, "Green");
+  } catch (error) {
+    console.error("❌ Error en guildMemberAdd:", error.message);
   }
-
-  member.roles.add(config.roles.noverificado).catch((err) => {
-    console.error("❌ Error asignando rol:", err);
-  });
-
-  logEvent(member.guild, "Nuevo Miembro", `${member.user.tag} se unió`, "Green");
 });
 
-/* =========================
-   SISTEMA PRINCIPAL RP
-========================= */
-
+// Message Create
 client.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
-  if (!msg.guild) return;
-
-  const id = msg.author.id;
-  const user = db.getUser(id);
-  const prefix = "!";
-
-  if (!msg.content.startsWith(prefix)) return;
-
-  const args = msg.content.slice(prefix.length).trim().split(/ +/);
-  const command = args[0].toLowerCase();
-
   try {
-    /* ================= VERIFICACIÓN ================= */
+    if (msg.author.bot) return;
+    if (!msg.guild) return;
+
+    const id = msg.author.id;
+    const user = db.getUser(id);
+    const prefix = "!";
+
+    if (!msg.content.startsWith(prefix)) return;
+
+    const args = msg.content.slice(prefix.length).trim().split(/ +/);
+    const command = args[0].toLowerCase();
+
+    // VERIFICAR
     if (command === "verificar") {
       if (msg.member.roles.cache.has(config.roles.verificado)) {
         return msg.reply("⚠️ Ya estás verificado");
@@ -268,13 +253,13 @@ client.on("messageCreate", async (msg) => {
         msg.reply({ embeds: [embed] });
         logEvent(msg.guild, "Verificación", `${msg.author.tag} se verificó`, "Green");
       } catch (error) {
-        console.error("❌ Error en verificación:", error);
-        msg.reply("❌ Error al verificar. Intenta de nuevo.");
+        console.error("❌ Error en verificación:", error.message);
+        msg.reply("❌ Error al verificar").catch(() => {});
       }
       return;
     }
 
-    /* ================= DNI ================= */
+    // DNI
     if (command === "dni") {
       if (user.dni) {
         return msg.reply("⚠️ Ya tienes un DNI");
@@ -298,13 +283,13 @@ client.on("messageCreate", async (msg) => {
         msg.reply({ embeds: [embed] });
         logEvent(msg.guild, "DNI Creado", `${msg.author.tag} creó su DNI`, "Blue");
       } catch (error) {
-        console.error("❌ Error en DNI:", error);
-        msg.reply("❌ Error al crear DNI.");
+        console.error("❌ Error en DNI:", error.message);
+        msg.reply("❌ Error al crear DNI").catch(() => {});
       }
       return;
     }
 
-    /* ================= PERFIL ================= */
+    // PERFIL
     if (command === "perfil") {
       const targetUser = msg.mentions.users.first() || msg.author;
       const targetData = db.getUser(targetUser.id);
@@ -315,13 +300,10 @@ client.on("messageCreate", async (msg) => {
         .addFields(
           { name: "💰 Dinero", value: formatMoney(targetData.money), inline: true },
           { name: "📱 Teléfono", value: `${targetData.phone}`, inline: true },
-          { name: "🆔 DNI", value: targetData.dni ? "✅ Sí" : "❌ No", inline: true },
+          { name: "🆔 DNI", value: targetData.dni ? "✅" : "❌", inline: true },
           { name: "⭐ Nivel", value: `${targetData.level}`, inline: true },
-          { name: "📊 Experiencia", value: `${targetData.exp}/100`, inline: true },
-          { name: "👔 Profesión", value: targetData.profession || "Ninguna", inline: true },
-          { name: "🚨 Crímenes", value: `${targetData.crimes}`, inline: true },
-          { name: "🚔 Arrestos", value: `${targetData.arrests}`, inline: true },
-          { name: "⭐ Reputación", value: `${targetData.reputation}`, inline: true }
+          { name: "📊 EXP", value: `${targetData.exp}/100`, inline: true },
+          { name: "👔 Profesión", value: targetData.profession || "Ninguna", inline: true }
         )
         .setColor("Purple")
         .setTimestamp();
@@ -330,61 +312,44 @@ client.on("messageCreate", async (msg) => {
       return;
     }
 
-    /* ================= ECONOMÍA ================= */
+    // BALANCE
     if (command === "bal" || command === "balance") {
       const embed = new EmbedBuilder()
-        .setTitle("💰 Estado Financiero")
+        .setTitle("💰 Tu Dinero")
         .addFields(
-          { name: "Dinero en Banco", value: formatMoney(user.money), inline: false },
-          { name: "Teléfono", value: `${user.phone}`, inline: false }
+          { name: "Saldo", value: formatMoney(user.money), inline: false }
         )
-        .setColor("Gold")
-        .setTimestamp();
+        .setColor("Gold");
 
       return msg.reply({ embeds: [embed] });
     }
 
+    // DAILY
     if (command === "daily") {
       if (!db.canClaimDaily(id)) {
-        const lastClaim = db.data.lastDaily[id];
-        const timeLeft = Math.ceil((config.timeouts.dailyBonus - (Date.now() - lastClaim)) / 1000 / 60);
-        return msg.reply(`⏳ Ya reclamaste tu bono diario. Intenta en ${timeLeft} minutos.`);
+        return msg.reply("⏳ Ya reclamaste tu bono diario hoy");
       }
 
       user.money += config.economy.dailyBonus;
-      user.exp += 10;
       db.setUser(id, user);
       db.setDailyClaim(id);
 
-      const newLevel = getLevel(user.exp);
-      const levelUp = newLevel > user.level;
-
-      let description = `✅ Recibiste ${formatMoney(config.economy.dailyBonus)}\n📊 +10 EXP`;
-      if (levelUp) {
-        description += `\n🎉 ¡SUBISTE A NIVEL ${newLevel}!`;
-        user.level = newLevel;
-        db.setUser(id, user);
-      }
-
       const embed = new EmbedBuilder()
-        .setTitle("📅 Bono Diario Reclamado")
-        .setDescription(description)
+        .setTitle("📅 Bono Diario")
+        .setDescription(`✅ Recibiste ${formatMoney(config.economy.dailyBonus)}`)
         .setColor("Green");
 
       msg.reply({ embeds: [embed] });
       return;
     }
 
+    // TRANSFER
     if (command === "transfer") {
       const targetUser = msg.mentions.users.first();
       const amount = parseInt(args[2]) || 0;
 
       if (!targetUser || amount <= 0) {
         return msg.reply("❌ Uso: !transfer @usuario cantidad");
-      }
-
-      if (amount < config.economy.minTransfer) {
-        return msg.reply(`❌ Mínimo a transferir: ${formatMoney(config.economy.minTransfer)}`);
       }
 
       if (user.money < amount) {
@@ -398,316 +363,154 @@ client.on("messageCreate", async (msg) => {
       targetData.money += amount;
       db.setUser(targetUser.id, targetData);
 
-      const embed = new EmbedBuilder()
-        .setTitle("💵 Transferencia Completada")
-        .setDescription(`Enviaste ${formatMoney(amount)} a ${targetUser.tag}`)
-        .setColor("Blue");
-
-      msg.reply({ embeds: [embed] });
-      logEvent(msg.guild, "Transferencia", `${msg.author.tag} transfirió ${formatMoney(amount)} a ${targetUser.tag}`, "Blue");
+      msg.reply(`✅ Transferiste ${formatMoney(amount)} a ${targetUser.tag}`);
       return;
     }
 
-    if (command === "give" && isSuperAdmin(id)) {
-      const targetUser = msg.mentions.users.first();
-      const amount = parseInt(args[2]) || 0;
-
-      if (!targetUser || amount <= 0) {
-        return msg.reply("❌ Uso: !give @usuario cantidad");
-      }
-
-      const targetData = db.getUser(targetUser.id);
-      targetData.money += amount;
-      db.setUser(targetUser.id, targetData);
-
-      const embed = new EmbedBuilder()
-        .setTitle("💸 Dinero Otorgado")
-        .setDescription(`Se le dieron ${formatMoney(amount)} a ${targetUser.tag}`)
-        .setColor("Green");
-
-      msg.reply({ embeds: [embed] });
-      logEvent(msg.guild, "Admin - Dinero", `${msg.author.tag} otorgó ${formatMoney(amount)} a ${targetUser.tag}`, "Yellow");
-      return;
-    }
-
-    /* ================= CRÍMENES RP ================= */
+    // ROBAR
     if (command === "robar") {
-      if (user.profession === "policia" || user.profession === "medico") {
-        return msg.reply("❌ Tu profesión no puede robar");
-      }
-
       const targetUser = msg.mentions.users.first();
       if (!targetUser) {
         return msg.reply("❌ Uso: !robar @usuario");
       }
 
       const targetData = db.getUser(targetUser.id);
-      const reward = Math.floor(Math.random() * (config.economy.crimeReward.max - config.economy.crimeReward.min + 1) + config.economy.crimeReward.min);
-      const success = Math.random() < config.economy.crimeChance;
+      const reward = Math.floor(Math.random() * 1000) + 500;
+      const success = Math.random() < 0.6;
 
-      if (success) {
-        if (targetData.money >= reward) {
-          targetData.money -= reward;
-          user.money += reward;
-          user.crimes++;
-          user.exp += 25;
-          targetData.arrests = (targetData.arrests || 0) + 1;
-
-          db.setUser(id, user);
-          db.setUser(targetUser.id, targetData);
-
-          const embed = new EmbedBuilder()
-            .setTitle("🚨 ¡ROBO EXITOSO!")
-            .setDescription(`Robaste ${formatMoney(reward)} a ${targetUser.tag}`)
-            .setColor("Red");
-
-          msg.reply({ embeds: [embed] });
-          logEvent(msg.guild, "Robo", `${msg.author.tag} robó ${formatMoney(reward)} a ${targetUser.tag}`, "Red");
-        } else {
-          return msg.reply(`❌ ${targetUser.tag} no tiene suficiente dinero`);
-        }
-      } else {
-        user.arrests = (user.arrests || 0) + 1;
+      if (success && targetData.money >= reward) {
+        targetData.money -= reward;
+        user.money += reward;
+        user.crimes++;
         db.setUser(id, user);
+        db.setUser(targetUser.id, targetData);
 
-        const embed = new EmbedBuilder()
-          .setTitle("🚔 ¡ATRAPADO!")
-          .setDescription("¡La policía RP te atrapó! -1 reputación")
-          .setColor("Red");
-
-        msg.reply({ embeds: [embed] });
-        logEvent(msg.guild, "Intento fallido", `${msg.author.tag} intentó robar a ${targetUser.tag} pero fue atrapado`, "Orange");
+        msg.reply(`🚨 ¡ROBO EXITOSO! Robaste ${formatMoney(reward)}`);
+      } else {
+        msg.reply("🚔 ¡ATRAPADO! La policía te detuvo");
       }
       return;
     }
 
-    /* ================= TELÉFONO RP ================= */
-    if (command === "telefono") {
-      const embed = new EmbedBuilder()
-        .setTitle("📱 Tu Número de Teléfono")
-        .setDescription(`\`\`\`\n${user.phone}\n\`\`\``)
-        .setColor("Purple")
-        .setFooter({ text: "Guarda este número en tu inventario RP" });
-
-      return msg.reply({ embeds: [embed] });
-    }
-
-    /* ================= PROFESIONES ================= */
+    // PROFESION
     if (command === "profesion") {
       const profession = args[1]?.toLowerCase();
       const validProfessions = ["policia", "medico", "bombero", "ejercito", "civil"];
 
       if (!profession || !validProfessions.includes(profession)) {
-        return msg.reply(`❌ Profesiones válidas: ${validProfessions.join(", ")}`);
-      }
-
-      if (user.profession === profession) {
-        return msg.reply("⚠️ Ya tienes esa profesión");
+        return msg.reply(`❌ Profesiones: ${validProfessions.join(", ")}`);
       }
 
       user.profession = profession;
       db.setUser(id, user);
 
-      try {
-        if (profession !== "civil") {
-          const roleId = config.roles[profession];
-          await msg.member.roles.add(roleId);
-        }
-
-        const embed = new EmbedBuilder()
-          .setTitle("👔 Profesión Asignada")
-          .setDescription(`Eres **${profession.toUpperCase()}**`)
-          .setColor("Blue");
-
-        msg.reply({ embeds: [embed] });
-        logEvent(msg.guild, "Profesión", `${msg.author.tag} se convirtió en ${profession}`, "Blue");
-      } catch (error) {
-        console.error("❌ Error asignando profesión:", error);
-        msg.reply("❌ Error al asignar profesión");
-      }
+      msg.reply(`✅ Eres **${profession.toUpperCase()}** ahora`);
       return;
     }
 
-    /* ================= ENTORNOS ================= */
+    // 911
     if (command === "911") {
       const text = msg.content.slice(4).trim();
       if (!text) {
-        return msg.reply("❌ Uso: !911 [descripción del evento]");
+        return msg.reply("❌ Uso: !911 [evento]");
       }
 
       const ch = msg.guild.channels.cache.get(config.channels.entornos);
-      if (!ch) {
-        return msg.reply("❌ Canal de entornos no configurado");
+      if (ch) {
+        const embed = new EmbedBuilder()
+          .setTitle("🚨 EVENTO RP")
+          .setDescription(text)
+          .addFields({ name: "📞 Reportante", value: msg.author.tag })
+          .setColor("Red");
+
+        ch.send({ embeds: [embed] }).catch(() => {});
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle("🚨 EVENTO RP - 911")
-        .setDescription(text)
-        .addFields(
-          { name: "📍 Reportante", value: msg.author.tag, inline: false },
-          { name: "📞 Teléfono", value: `${user.phone}`, inline: false }
-        )
-        .setColor("Red")
-        .setTimestamp();
-
-      ch.send({ embeds: [embed] }).catch((err) => {
-        console.error("❌ Error enviando evento:", err);
-      });
-
-      msg.reply("📡 Evento enviado a los canales de RP");
+      msg.reply("📡 Evento enviado");
       return;
     }
 
-    /* ================= VOTACIONES ================= */
-    if (command === "votacion") {
-      const text = msg.content.slice(10).trim();
-      if (!text) {
-        return msg.reply("❌ Uso: !votacion [pregunta]");
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle("🗳️ VOTACIÓN BANDIDAJE RP")
-        .setDescription(text)
-        .setColor("Green")
-        .setFooter({ text: `Iniciada por: ${msg.author.tag}` })
-        .setTimestamp();
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("yes")
-          .setLabel("🟢 Sí")
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId("maybe")
-          .setLabel("🟡 Tal vez")
-          .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId("no")
-          .setLabel("🔴 No")
-          .setStyle(ButtonStyle.Danger)
-      );
-
-      try {
-        const message = await msg.channel.send({
-          embeds: [embed],
-          components: [row]
-        });
-
-        db.setVote(message.id, { yes: 0, maybe: 0, no: 0 });
-        logEvent(msg.guild, "Votación", `${msg.author.tag} inició una votación`, "Purple");
-      } catch (error) {
-        console.error("❌ Error en votación:", error);
-        msg.reply("❌ Error al crear votación");
-      }
-      return;
-    }
-
-    /* ================= LEADERBOARD ================= */
+    // TOP
     if (command === "top" || command === "ranking") {
       const users = Object.entries(db.data.users)
         .sort((a, b) => b[1].money - a[1].money)
-        .slice(0, 10);
+        .slice(0, 5);
 
       let leaderboard = "```\n";
       users.forEach((entry, index) => {
-        leaderboard += `${index + 1}. ${entry[0]}: ${formatMoney(entry[1].money)}\n`;
+        leaderboard += `${index + 1}. ${entry[1].money}\n`;
       });
       leaderboard += "```";
 
       const embed = new EmbedBuilder()
-        .setTitle("💰 Top 10 Más Ricos")
+        .setTitle("💰 Top 5 Más Ricos")
         .setDescription(leaderboard)
-        .setColor("Gold")
-        .setTimestamp();
+        .setColor("Gold");
 
       msg.reply({ embeds: [embed] });
       return;
     }
 
-    /* ================= AYUDA ================= */
+    // AYUDA
     if (command === "ayuda" || command === "help") {
       const embed = new EmbedBuilder()
-        .setTitle("📖 Comandos Disponibles - Bandidaje RP")
-        .setDescription("Usa los comandos con el prefijo `!`")
+        .setTitle("📖 Comandos")
         .addFields(
-          {
-            name: "🔐 Verificación",
-            value: "`!verificar` - Verificarte\n`!dni` - Crear DNI"
-          },
-          {
-            name: "💰 Economía",
-            value: "`!bal` - Ver dinero\n`!daily` - Bono diario\n`!transfer @user cantidad` - Transferir dinero\n`!top` - Ranking de dinero"
-          },
-          {
-            name: "👤 Perfil",
-            value: "`!perfil [@user]` - Ver perfil\n`!telefono` - Ver teléfono RP\n`!profesion [prof]` - Elegir profesión"
-          },
-          {
-            name: "🚨 Crimen RP",
-            value: "`!robar @user` - Intentar robar (60% éxito)\n`!911 [evento]` - Reportar un evento"
-          },
-          {
-            name: "🗳️ Votaciones",
-            value: "`!votacion [pregunta]` - Crear votación"
-          }
+          { name: "!verificar", value: "Verificarte" },
+          { name: "!dni", value: "Crear DNI" },
+          { name: "!bal", value: "Ver dinero" },
+          { name: "!daily", value: "Bono diario" },
+          { name: "!transfer @user cantidad", value: "Transferir dinero" },
+          { name: "!robar @user", value: "Robar (60% éxito)" },
+          { name: "!profesion", value: "Elegir profesión" },
+          { name: "!911", value: "Reportar evento" },
+          { name: "!top", value: "Ranking" }
         )
-        .setColor("Blue")
-        .setFooter({ text: "¡Diviértete en Bandidaje RP!" })
-        .setTimestamp();
+        .setColor("Blue");
 
       msg.reply({ embeds: [embed] });
       return;
     }
 
   } catch (error) {
-    console.error("❌ Error procesando comando:", error);
-    msg.reply("❌ Ocurrió un error al procesar el comando").catch(() => {});
+    console.error("❌ Error en messageCreate:", error.message);
   }
 });
 
-/* =========================
-   BOTONES VOTACIÓN
-========================= */
-
+// Interaction
 client.on("interactionCreate", async (i) => {
-  if (!i.isButton()) return;
+  try {
+    if (!i.isButton()) return;
 
-  const vote = db.getVote(i.message.id);
-  if (!vote) return;
+    const vote = db.getVote(i.message.id);
+    if (!vote) return;
 
-  if (i.customId === "yes") vote.yes++;
-  if (i.customId === "maybe") vote.maybe++;
-  if (i.customId === "no") vote.no++;
+    if (i.customId === "yes") vote.yes++;
+    if (i.customId === "no") vote.no++;
 
-  db.setVote(i.message.id, vote);
+    db.setVote(i.message.id, vote);
 
-  const totals = `🟢 Sí: ${vote.yes} | 🟡 Tal vez: ${vote.maybe} | 🔴 No: ${vote.no}`;
-
-  i.reply({
-    content: `🗳️ Voto registrado\n\n${totals}`,
-    ephemeral: true
-  });
+    i.reply({
+      content: `🗳️ Voto registrado`,
+      ephemeral: true
+    });
+  } catch (error) {
+    console.error("❌ Error en interactionCreate:", error.message);
+  }
 });
 
-/* =========================
-   ERROR HANDLING
-========================= */
-
+// Error Handling
 client.on("error", (error) => {
-  console.error("❌ Error del cliente:", error);
+  console.error("❌ Error del cliente:", error.message);
 });
 
 process.on("unhandledRejection", (reason) => {
-  console.error("❌ Promise rejection no manejada:", reason);
+  console.error("❌ Rechazo no manejado:", reason);
 });
 
-/* =========================
-   LOGIN
-========================= */
-
-if (!process.env.DISCORD_TOKEN) {
-  console.error("❌ DISCORD_TOKEN no está configurado en variables de entorno");
+// Login
+console.log("🔑 Intentando conectar con Discord...");
+client.login(token).catch((error) => {
+  console.error("❌ ERROR AL CONECTAR:", error.message);
   process.exit(1);
-}
-
-client.login(process.env.DISCORD_TOKEN);
+});
